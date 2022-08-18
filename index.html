@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Digital Filter Visualizer</title>
+    <script type="text/javascript" src="d3/d3.min.js"></script>
+    <script type="text/javascript" src="js/Zplane.js"></script>
+    <script type="text/javascript" src="js/Chart.js"></script>
+    <script type="text/javascript" src="js/Plot.js"></script>
+    <script type="text/javascript" src="js/Ztransform.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.2/math.min.js"
+        integrity="sha512-X8Y5jFgsf/zxQN1X83Tdp1eHCzY52EfcYrDpbLxffRpF3Cyub7v9Jo0b5uwt1x6/h3ZnFzjL+yK12y1f7Q2zhg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4"
+        crossorigin="anonymous"></script>
+    <script src="js/plotly.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.1/papaparse.min.js"></script>
+
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div>
+            <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+                <a class="navbar-brand" href="#">Home</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
+                    aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                    <ul class="navbar-nav">
+                        <li class="nav-item active">
+                            <a class="nav-link" href="#realtimecharts">Realtime Chart</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Pricing</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <section id="spacer" style="margin-top: 5%;">
+            <input type="file" id="uploadfile" accept=".csv">
+            <button id="uploadconfirmb">Upload file</button>
+            <!-- <div class="col">
+            <input type="image" src="clear-icon-3.png" style="border: single;" height="70%" width="70%"
+                onclick="delete_all()" />
+            <h6>Clear All</h6>
+        </div> -->
+        </section>
+
+        <section id="plot_info" class="container">
+            <div class="row col-12">
+                <h3 class="text-center mb-5">Add Zeroes & Poles Manually</h3>
+            </div>
+            <div class="row">
+                <select name="PointType" id="PointType" class="col form-select w-51">
+                    <option selected value="nonConjPole">Pole</option>
+                    <option value="conjPole">Conjugate Pole</option>
+                    <option value="nonConjZero">Zero</option>
+                    <option value="conjZero">Conjugate Zero</option>
+                    <option value="allPass">All Pass</option>
+                </select>
+                <div class="col">
+                    <input type="text" value="0" class="form-control" id="real">
+                </div>
+                <div class="col">
+                    <input type="text" value="0" class="form-control" id="imaginary">
+                </div>
+                <div class="col">
+                    <button class="btn btn-success" onclick="addPoint()">Add</button>
+                </div>
+                <div class="col">
+                    <h6 class="mt-2">All-Pass (a)</h6>
+                </div>
+                <div class="col">
+                    <select name="allPass" id="allPass" class="col form-select w-50">
+                        <option selected value="0.9">0.9</option>
+                        <option value="0.5">0.5</option>
+                        <option value="0.1">0.1</option>
+                        <option value="-0.1">-0.1 + 1i</option>
+                        <option value="-0.5">-0.5</option>
+                        <option value="-0.9">-0.9</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <button class="btn btn-success" onclick="add_allPass()">Use</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="d-lg-flex container" id="plots">
+            <div id="circle" class="col  m-sm-5">
+                <div class="row mb-4">
+                    <div class="col">
+                        <input type="image" src="Eraser-pole.png" style="border: single;" height="70%" width="70%"
+                            onclick="delete_poles()" />
+                        <h6>Clear Poles</h6>
+                        <!--<button class="btn h-100 btn-success" onclick="delete_poles()">Clear poles</button>-->
+                    </div>
+                    <div class="col">
+                        <input type="image" src="Eraser-Zero.png" style="border: single;" height="70%" width="70%"
+                            onclick="delete_zeros()" />
+                        <h6>Clear Zeros</h6>
+                        <!--<button class="btn h-100 btn-success" onclick="delete_zeros()">Clear Zeroes</button>-->
+                    </div>
+                    <div class="col">
+                        <input type="image" src="clear-icon-3.png" style="border: single;" height="70%" width="70%"
+                            onclick="delete_all()" />
+                        <h6>Clear All</h6>
+                        <!--<button class="btn h-100 btn-success" onclick="delete_all()">Clear All</button>-->
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h6>Current real : <span id="current_x"></span></h6>
+                    </div>
+                    <div class="col">
+                        <h6>Current j : <span id="current_j"></span></h6>
+                    </div>
+                </div>
+
+            </div>
+
+            <section class="container mt-5">
+                <div id="plot1" class="col">
+
+                </div>
+                <div id="plot2" class="col">
+
+                </div>
+                <div id="plot3" class="col">
+
+                </div>
+            </section>
+        </section>
+        <!-- <div>
+            <input type="checkbox" id="AddPoleConj" name="AddPoleConj" value="nonConjPole" onclick="omar_add() ">
+            <label for="AddPoleConj" style="margin-right: 100px;"> Add pole Conjuget</label>
+            <input type="checkbox" id="AddZeroConj" name="AddZeroConj" value="conjZero" onclick="omar_add()">
+            <label for="AddZeroConj"> Add Zero Conjuget</label>
+        </div> -->
+
+        <section id="realtimecharts" height="60%" width="80%">
+            <!-- <div class="box" style="padding: 2% 2% 2% 2%; align-items: center;">
+            <div class="slider">
+                <label for="slider" style="margin-right: 10px; align-items: center;">Filtering Speed</label>
+                <input id="slider" type="range" min="100" step="1" value="20">
+
+            </div>
+            <div class="value">100</div>
+        </div> -->
+            <div width="800">
+                <h6>1000 means 1 point per second and 10 means 100 p/s</h6>
+                <input type="range" id="speedslider" name="speedslider" value="1" min="0.001" max="1000" style="width: 80%">
+                <label id="labelforspeedslider" for="speedslider">10</label>
+            </div>
+
+
+            <div id="unfilteredsignalchart" width="80%"></div>
+            <div id="filteredsignalchart" width="80%"></div>
+        </section>
+
+        <div id="tester" style="width:600px;height:250px;"></div>
+        <div id="chart_div"></div>
+
+
+        <!-- freq response -->
+        <script type="text/javascript">
+            let zplane = new Zplane(350, 350);
+            let ztrans = new ZTransform();
+            let allPassValues = [];
+            //Your beautiful D3 code will go here
+            zplane.plot_axis();
+            let plt = new Plot(500, 100);
+
+            let HofN = [];//impulse response
+            // update plot 
+            const omar_add = () => {
+                let checkboxPole = document.getElementById("AddPoleConj");
+                let checkboxZero = document.getElementById("AddZeroConj");
+
+                if ((checkboxPole.checked == true)) {
+                    console.log("ana gowa index:", checkboxPole.value)
+                    zplane.add_conjugtes(checkboxPole.value);
+                    //update_plots();
+                }
+                if ((checkboxZero.checked == true)) {
+                    console.log("ana gowa index:", checkboxZero.value)
+                    zplane.add_conjugtes(checkboxZero.value);
+                    update_plots();
+                }
+            }
+
+
+            const Sum = () => {
+                let HofZ = [];
+                for (let i = 0; i < HofN.length; i++) {
+                    HofZ.push(HofN[i] * (Math.exp(-i * Math.complex * 2)));
+                }
+                console.log("array H of Z", HofZ);
+            }
+
+            let charts = plt.plot([], [], [], [], [], [], "Magnitude", "Phase", "All Pass Phase");
+            const addPoint = () => {
+                let re = parseFloat(document.getElementById("real").value);
+                let im = parseFloat(document.getElementById("imaginary").value);
+                let type = document.getElementById("PointType").value;
+                if (type == "allPass") {
+                    //add to our lib
+                    let c = math.complex(re, im);
+                    var sel = document.getElementById('allPass');
+                    // create new option element
+                    var opt = document.createElement('option');
+                    // create text node to add to option element (opt)
+                    opt.appendChild(document.createTextNode(c.toString()));
+                    // set value property of opt
+                    opt.value = c.toString();
+                    sel.appendChild(opt);
+                }
+                zplane.add_point([re, im], type);
+                update_plots();
+            }
+            const update_plots = () => {
+                plt.destroy();
+                let poles = zplane.get_poles();
+                let zeros = zplane.get_zeros();
+                let allPass = zplane.get_allPass();
+                let response = ztrans.filter(poles, zeros, allPass); //y-axis
+                let freqs = ztrans.frequencies; //x-axis
+                charts = plt.plot(freqs, response.magnitude, freqs, response.phase, [], [], "Magnitude", "Phase", "All Pass Phase");
+                HofN = response.magnitude;//update H of N
+                //Sum();//nady 3al function sum
+                update_allPass(response.allPassPhase);
+            }
+            const update_allPass = (allPassPhase) => {
+                let freqs = ztrans.frequencies //x-axis
+                charts.myChart3.data.labels = freqs;
+                charts.myChart3.data.datasets.forEach((dataset) => {
+                    dataset.data = allPassPhase;
+                });
+                charts.myChart3.update();
+            }
+
+            zplane.function_during_drag = update_plots;
+            zplane.function_during_delete = update_plots;
+            const add_real = (type) => {
+                if (type == zplane.types.nonConjPole) {
+                    //get value of pole
+                    let real = parseFloat(document.getElementById("realPole").value);
+                    let imaginary = parseFloat(document.getElementById("imagPole").value);
+                    zplane.add_point([real, imaginary], zplane.types.nonConjPole);
+                } else {
+                    let real = parseFloat(document.getElementById("realZero").value);
+                    let imaginary = parseFloat(document.getElementById("imagZero").value);
+                    zplane.add_point([real, imaginary], zplane.types.nonConjZero);
+                }
+                update_plots();
+            }
+            const add_allPass = () => {
+                let value = document.getElementById("allPass").value;
+                value = math.complex(value);
+                zplane.add_point([value.re, value.im], zplane.types.allPass);
+                update_plots("allPass");
+            }
+            const add_conj = (type) => {
+                if (type == zplane.types.conjPole) {
+                    let real = parseFloat(document.getElementById("poleReal").value);
+                    let imag = parseFloat(document.getElementById("poleImag").value);
+                    zplane.add_point([real, imag], zplane.types.conjPole);
+                } else {
+                    let real = parseFloat(document.getElementById("zeroReal").value);
+                    let imag = parseFloat(document.getElementById("zeroImag").value);
+                    zplane.add_point([real, imag], zplane.types.conjZero);
+                }
+                update_plots();
+            }
+            const delete_poles = () => {
+                zplane.delete_poles();
+                update_plots();
+            }
+            const delete_zeros = () => {
+                zplane.delete_zeros();
+                update_plots();
+            }
+            const delete_all = () => {
+                zplane.delete_all();
+                update_plots();
+            }
+
+            let plotincremet = -1;
+            let plotincremetfilterd=-1;
+            let xCsv = [];
+            let yCsv = [];
+            let yfiltered=[];
+            let slidervalue = 1;
+
+            // function updatesliderValue(e) {
+            //     const isoValue = Number(e.target.value);
+            // }
+
+            const slider = document.querySelector("#speedslider");
+            const value = document.querySelector("#labelforspeedslider");
+
+            slider.oninput = function () {
+                value.innerHTML = slider.value;
+                slidervalue = (slider.value);
+                console.log('slidervalue: ', slidervalue);
+            }
+
+            // const el = document.querySelector('#slider');
+            // el.addEventListener('input', ()=>{console.log(Number(e.target.value))});
+
+            // //const slider = document.querySelector("#slider");
+            // const value = document.querySelector(".value");
+            // value.textContent = slider.value;
+            // slider.oninput = function () {
+            //     value.textContent = this.value;
+            //     slidervalue = this.value;
+            //     console.log(slidervalue);
+            // }
+
+            const uploadconfirm = document.getElementById('uploadconfirmb').addEventListener('click', uploadAndplot)
+
+            async function uploadAndplot(){
+
+                Papa.parse(document.getElementById("uploadfile").files[0], {
+                    download: true,
+                    header: false,
+                    skipEmptylines: true,
+                    complete: async function (results) {
+                        for (let i = 0; i < results.data.length; i++) {
+                            xCsv.push(results.data[i][0]);
+                            yCsv.push(results.data[i][1]);
+                        }
+                        console.log(xCsv, yCsv);
+
+                        yfiltered = await getFilteredData();
+                        var count = 0;
+
+                        Plotly.newPlot('unfilteredsignalchart', [{ y: [getData()], type: 'line' }]);
+                        Plotly.newPlot('filteredsignalchart', [{ y: [getDatafilterd()], type: 'line' }]);
+
+                        var interval = setInterval(function () {
+                            Plotly.extendTraces('filteredsignalchart', { y: [[getDatafilterd()]] }, [0]);
+                            Plotly.extendTraces('unfilteredsignalchart', { y: [[getData()]] }, [0]);
+                            count++;
+                            if (plotincremet == yCsv.length) {
+                                alert("Signal ploting is done.");
+                                clearInterval(interval);
+                            }
+                            if (count > 50) {
+                                Plotly.relayout("filteredsignalchart", {
+                                    xaxis: { range: [count - 50, count] }
+                                });
+                                Plotly.relayout("unfilteredsignalchart", {
+                                    xaxis: { range: [count - 50, count] }
+                                });
+                            }
+
+                        }, slidervalue);//1000 means 1 point per second and 10 means 100 p/s
+                    }
+                })
+            
+            }
+        
+
+
+
+
+            Plotly.newPlot('unfilteredsignalchart', [{ y: [getData()], type: 'line' }]);
+            Plotly.newPlot('filteredsignalchart', [{ y: [getDatafilterd()], type: 'line' }]);
+
+            function getData() {
+                if ((yCsv.length != 0) && (plotincremet < yCsv.length)) {
+                    plotincremet++;
+                    return yCsv[plotincremet];
+                }
+            }
+            // lelplotting
+            function getDatafilterd() {
+                if ((yCsv.length != 0) && (plotincremetfilterd < yCsv.length)) {
+                    plotincremetfilterd++;
+                    return yfiltered[plotincremetfilterd];
+                }
+            }
+            //apply filter on data
+            async function getFilteredData() {
+                // Get zeros & poles
+                let poles = zplane.get_poles();
+                let zeros = zplane.get_zeros();
+
+                infoDict = {
+                    "loadedData": JSON.stringify(yCsv),
+                    "zeros": JSON.stringify(zeros),
+                    "poles": JSON.stringify(poles)
+                };
+
+                var { 'filteredData': yFilteredData } = await sendToServer(
+                    `${BASE_URL}/filter`, infoDict
+                );
+
+                return yFilteredData
+            }
+
+            BASE_URL = "http://127.0.0.1:9000"
+
+            async function sendToServer(url = '', data = {}) {
+
+                var response = await fetch(url, {
+                    method: 'POST',
+                    mode: "cors",
+                    body: JSON.stringify(data),
+                });
+
+                return response.json()
+            }
+
+
+        // let index = 0;
+        // let random = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        // setInterval(function () {
+
+        //     // instead of this random, you can make an ajax call for the current cpu usage or what ever data you want to display
+        //     //let random = Math.random() * 30 + 20;
+
+        //     data.addRow([index, random[index]]);
+        //     chart.draw(data, options);
+
+        //     index++;
+        // }, 250);
+
+
+        // TESTER = document.getElementById('tester');
+        // Plotly.newPlot(TESTER, [{
+        //     x: [1, 2, 3, 4, 5],
+        //     y: [1, 2, 4, 8, 16]
+        // }], {
+        //     margin: { t: 0 }
+        // });
+
+        </script>
+    </div>
+</body>
+
+</html>
